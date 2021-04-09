@@ -35,7 +35,7 @@ fn access_register<'a>(registers: &'a mut Vec<Option<i64>>, r: &char) -> &'a mut
     }
 }
 
-fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
+pub fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
     let mut registers = vec![None; 26]; // None for 'a'..='z'
     let mut parsed_program = vec![None; program.len()];
     let mut pc = 0;
@@ -94,22 +94,4 @@ fn parse_register(v_str: Option<&str>) -> Result<Register, String> {
         }
     }
     Err(format!("Bad register '{}', requires single ascii lowercase letter", s))
-}
-
-fn main() {
-    let program = vec![
-        "mov c 12",
-        "mov b 0",
-        "mov a 200",
-        "dec a",
-        "inc b",
-        "jnz a -2",
-        "dec c",
-        "mov a b",
-        "jnz c -5",
-        "jnz 0 1",
-        "mov c a",
-    ];
-    println!("{:#?}", simple_assembler(program));
-    println!("{:#?}", simple_assembler(vec!["mov a 5", "inc a", "dec a", "dec a", "jnz a -1", "inc a"]));
 }

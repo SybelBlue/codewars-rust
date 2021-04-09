@@ -1,6 +1,6 @@
 type IPv4Address = (u16, u16, u16, u16);
 
-fn ips_between(start: &str, end: &str) -> u32 {
+pub fn ips_between(start: &str, end: &str) -> u32 {
     ip4_to_int(parse_ip4(end)) - ip4_to_int(parse_ip4(start))
 }
 
