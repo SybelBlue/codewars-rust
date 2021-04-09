@@ -34,43 +34,39 @@ pub fn super_street_fighter_selection(fighters: &[&[&str]], position: Position, 
         out
     };
     let mut pos = position.clone();
-    let mut out = Vec::with_capacity(moves.len() + 1);
-    out.push(fighters[pos.y][pos.x].clone());
-    for m in moves {
-        if make_move(&fighters, &mut pos, m) {
-            out.push(fighters[pos.y][pos.x].clone());
-        }
-    }
-    out
+    moves.iter().map(|m| {
+        make_move(&fighters, &mut pos, m);
+        fighters[pos.y][pos.x].clone()
+    }).collect()
 }
 
-fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) -> bool {
+fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) {
     use Direction::*;
-    let (i, wrap) = match m {
-        Down | Up => (&mut pos.y, false),
-        Left | Right => (&mut pos.x, true),
+    let (i, j, wrap) = match m {
+        Down | Up    => (&mut pos.y, pos.x, false),
+        Left | Right => (&mut pos.x, pos.y, true),
     };
-    let (axis, pos_dir) = match m {
-        Up => (fighters.into_iter().map(|a| a[*i].clone()).collect(), true),
-        Down => (fighters.into_iter().map(|a| a[*i].clone()).collect(), false),
-        Right => (fighters[*i].clone(), true),
-        Left => (fighters[*i].clone(), false),
+    let (pos_dir, axis) = match m {
+        Up    => (false, fighters.into_iter().map(|a| a[j].clone()).collect()),
+        Down  => (true,  fighters.into_iter().map(|a| a[j].clone()).collect()),
+        Right => (true,  fighters[j].clone()),
+        Left  => (false, fighters[j].clone()),
     };
-    if axis.len() == 0 { return false; }
-    let next = move_along_axis(&axis, *i, pos_dir, wrap);
-    let old = *i;
-    *i = next;
-    old == next
+    if axis.len() == 0 { return; }
+    *i = move_along_axis(&axis, *i, pos_dir, wrap);
 }
 
 fn move_along_axis(axis: &Vec<String>, i: usize, pos_dir: bool, wrap: bool) -> usize {
     let max = axis.len() - 1;
     let mut next = i;
+    println!("start move: {:?} @ {}", axis, axis[next]);
     loop {
-        let at_boundary = (i == max && pos_dir) || (i == 0 && !pos_dir);
+        let at_boundary = next == if pos_dir { max } else { 0 };
         
         if !wrap && at_boundary {
-            return if axis[next].len() == 0 { i } else { next };
+            let n = if axis[next].len() == 0 { i } else { next };
+            println!("wrap boot {} -> {} ({})", i, n, axis[next]);
+            return n;
         }
         
         next = if at_boundary {
@@ -80,6 +76,7 @@ fn move_along_axis(axis: &Vec<String>, i: usize, pos_dir: bool, wrap: bool) -> u
         };
 
         if axis[next].len() != 0 {
+            println!("ok boot {} -> {} ({})", i, next, axis[next]);
             return next;
         }
     }
