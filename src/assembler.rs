@@ -28,11 +28,7 @@ impl Value {
 }
 
 fn access_register<'a>(registers: &'a mut Vec<Option<i64>>, r: &char) -> &'a mut i64 {
-    if let Some(v) = registers[*r as usize - 'a' as usize].as_mut() {
-        v
-    } else {
-        panic!(format!("Accessed unintialized register '{}'", r))
-    }
+    registers[*r as usize - 'a' as usize].as_mut().unwrap_or_else(|| panic!(format!("Accessed unintialized register '{}'", r)))
 }
 
 pub fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
