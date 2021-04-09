@@ -37,13 +37,14 @@ pub fn super_street_fighter_selection(fighters: &[&[&str]], position: Position, 
     let mut out = Vec::with_capacity(moves.len() + 1);
     out.push(fighters[pos.y][pos.x].clone());
     for m in moves {
-        make_move(&fighters, &mut pos, m);
-        out.push(fighters[pos.y][pos.x].clone());
+        if make_move(&fighters, &mut pos, m) {
+            out.push(fighters[pos.y][pos.x].clone());
+        }
     }
     out
 }
 
-fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) {
+fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) -> bool {
     use Direction::*;
     let (i, wrap) = match m {
         Down | Up => (&mut pos.y, false),
@@ -55,22 +56,31 @@ fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) {
         Right => (fighters[*i].clone(), true),
         Left => (fighters[*i].clone(), false),
     };
-    if axis.len() == 0 { return; }
-    *i = move_along_axis(&axis, *i, pos_dir, wrap);
+    if axis.len() == 0 { return false; }
+    let next = move_along_axis(&axis, *i, pos_dir, wrap);
+    let old = *i;
+    *i = next;
+    old == next
 }
 
 fn move_along_axis(axis: &Vec<String>, i: usize, pos_dir: bool, wrap: bool) -> usize {
     let max = axis.len() - 1;
-    let next = match () {
-        _ if i == max && pos_dir => if wrap { 0 } else { max },
-        _ if i == 0 && !pos_dir => if wrap { max } else { 0 },
-        _ if pos_dir => i + 1,
-        _ => (i as i64 - 1) as usize,
-    };
+    let mut next = i;
+    loop {
+        let at_boundary = (i == max && pos_dir) || (i == 0 && !pos_dir);
+        
+        if !wrap && at_boundary {
+            return if axis[next].len() == 0 { i } else { next };
+        }
+        
+        next = if at_boundary {
+            if next == 0 { max } else { 0 }
+        } else {
+            if pos_dir { next + 1 } else { (next as i64 - 1) as usize }
+        };
 
-    if axis[next].len() == 0 {
-        move_along_axis(axis, next, pos_dir, wrap)
-    } else {
-        next
+        if axis[next].len() != 0 {
+            return next;
+        }
     }
 }
