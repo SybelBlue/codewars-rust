@@ -10,7 +10,7 @@ enum Instr {
     Mov(Value, Value),
     Inc(Value),
     Dec(Value),
-    Jnz(Value),
+    Jnz(Value, Value),
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ fn interpret(line: &str) -> ParseResult<Instr> {
         Some("mov") => Ok(Instr::Mov(parse_value(itr.next())?, parse_value(itr.next())?)),
         Some("inc") => Ok(Instr::Inc(parse_value(itr.next())?)),
         Some("dec") => Ok(Instr::Dec(parse_value(itr.next())?)),
-        Some("jnz") => Ok(Instr::Jnz(parse_value(itr.next())?)),
+        Some("jnz") => Ok(Instr::Jnz(parse_value(itr.next())?, parse_value(itr.next())?)),
         Some(x) => Err({
             let mut msg = String::from(x);
             msg.push_str(" not recognized as instruction");
