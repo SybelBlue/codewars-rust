@@ -1,5 +1,6 @@
 pub mod ipv4;
 pub mod assembler;
+pub mod street_fighter;
 
 #[cfg(test)]
 mod tests {
