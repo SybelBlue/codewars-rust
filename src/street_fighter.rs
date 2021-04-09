@@ -42,18 +42,22 @@ pub fn super_street_fighter_selection(fighters: &[&[&str]], position: Position, 
 
 fn make_move(fighters: &Vec<Vec<String>>, pos: &mut Position, m: &Direction) {
     use Direction::*;
-    let (i, j, wrap) = match m {
+
+    let (shifting, fixed, wrap) = match m {
         Down | Up    => (&mut pos.y, pos.x, false),
         Left | Right => (&mut pos.x, pos.y, true),
     };
-    let (pos_dir, axis) = match m {
-        Up    => (false, fighters.into_iter().map(|a| a[j].clone()).collect()),
-        Down  => (true,  fighters.into_iter().map(|a| a[j].clone()).collect()),
-        Right => (true,  fighters[j].clone()),
-        Left  => (false, fighters[j].clone()),
+    
+    let axis = match m {
+        Down | Up    => fighters.into_iter().map(|a| a[fixed].clone()).collect(),
+        Left | Right => fighters[fixed].clone(),
     };
+    
+    let pos_dir = *m == Down || *m == Right;
+    
     if axis.len() == 0 { return; }
-    *i = move_along_axis(&axis, *i, pos_dir, wrap);
+    
+    *shifting = move_along_axis(&axis, *shifting, pos_dir, wrap);
 }
 
 fn move_along_axis(axis: &Vec<String>, i: usize, pos_dir: bool, wrap: bool) -> usize {
