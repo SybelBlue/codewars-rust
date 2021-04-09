@@ -15,15 +15,23 @@ enum Value {
 }
 
 impl Value {
-    pub fn evaluate(&self, registers: &Vec<Option<i64>>) -> i64 {
+    pub fn evaluate(&self, registers: &mut Vec<Option<i64>>) -> i64 {
         match self {
-            Reg(c) => registers[*c as usize - 'a' as usize].expect(format!("Accessed unintialized register '{}'", c).as_str()),
+            Reg(c) => *access_register(registers, c),
             Num(v) => *v,
         }
     }
 }
 
 use self::{Instruction::*, Value::*};
+
+fn access_register<'a>(registers: &'a mut Vec<Option<i64>>, c: &char) -> &'a mut i64 {
+    if let Some(v) = registers[*c as usize - 'a' as usize].as_mut() {
+        v
+    } else {
+        panic!(format!("Accessed unintialized register '{}'", c))
+    }
+}
 
 fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
     let mut registers = vec![None; 26];
@@ -36,19 +44,13 @@ fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
         });
         
         match instruction {
-            Mov(Reg(u), v) => { registers[*u as usize - 'a' as usize] = Some(v.evaluate(&registers)); },
-            Mov(u, v) => panic!(format!("mov requires destination to be a register, not {:?} and {:?}", u, v)),
-            Inc(Reg(c)) => {
-                let x = registers[*c as usize - 'a' as usize].as_mut().expect(format!("Accessed unintialized register '{}'", c).as_str());
-                *x += 1;
-            },
-            Dec(Reg(c)) => {
-                let x = registers[*c as usize - 'a' as usize].as_mut().expect(format!("Accessed unintialized register '{}'", c).as_str());
-                *x -= 1;
-            },
+            Mov(Reg(c), v) => registers[*c as usize - 'a' as usize] = Some(v.evaluate(&mut registers)),
+            Mov(Num(n), _) => panic!(format!("mov requires destination to be a register, not '{}'", n)),
+            Inc(Reg(c)) => *access_register(&mut registers, c) += 1,
+            Dec(Reg(c)) => *access_register(&mut registers, c) -= 1,
             Jnz(u, v) => {
-                if u.evaluate(&registers) != 0 {
-                    program_counter = (program_counter as i64 + v.evaluate(&registers)) as usize;
+                if u.evaluate(&mut registers) != 0 {
+                    program_counter = (program_counter as i64 + v.evaluate(&mut registers)) as usize;
                     continue;
                 }
             },
@@ -95,7 +97,7 @@ fn parse_value(v_str: Option<&str>) -> Result<Value, String> {
             },
         }
     } else {
-        Err(String::from("expected value, got end of line"))
+        Err(String::from("Expected value, got end of line"))
     }
 }
 
