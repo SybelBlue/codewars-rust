@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
+use self::{Instruction::*, Value::*};
+
+type Register = char;
+
 #[derive(Debug, Clone)]
 enum Instruction {
-    Mov(Value, Value),
-    Inc(Value),
-    Dec(Value),
+    Mov(Register, Value),
+    Inc(Register),
+    Dec(Register),
     Jnz(Value, Value),
 }
 
@@ -23,40 +27,34 @@ impl Value {
     }
 }
 
-use self::{Instruction::*, Value::*};
-
-fn access_register<'a>(registers: &'a mut Vec<Option<i64>>, c: &char) -> &'a mut i64 {
-    if let Some(v) = registers[*c as usize - 'a' as usize].as_mut() {
+fn access_register<'a>(registers: &'a mut Vec<Option<i64>>, r: &char) -> &'a mut i64 {
+    if let Some(v) = registers[*r as usize - 'a' as usize].as_mut() {
         v
     } else {
-        panic!(format!("Accessed unintialized register '{}'", c))
+        panic!(format!("Accessed unintialized register '{}'", r))
     }
 }
 
 fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
-    let mut registers = vec![None; 26];
+    let mut registers = vec![None; 26]; // None for 'a'..='z'
     let mut parsed_program = vec![None; program.len()];
-    let mut program_counter = 0;
-    while program_counter < program.len() {
-        let instruction = parsed_program[program_counter].get_or_insert_with(|| {
-            let line = program[program_counter];
-            interpret(line).map_err(|msg| panic!(format!("error {} at {}: {}", msg, program_counter, line))).unwrap()
+    let mut pc = 0;
+    while pc < program.len() {
+        let instruction = parsed_program[pc].get_or_insert_with(|| {
+            let line = program[pc];
+            parse(line).map_err(|msg| panic!(format!("error {} at {}: {}", msg, pc, line))).unwrap()
         });
         
         match instruction {
-            Mov(Reg(c), v) => registers[*c as usize - 'a' as usize] = Some(v.evaluate(&mut registers)),
-            Mov(Num(n), _) => panic!(format!("mov requires destination to be a register, not '{}'", n)),
-            Inc(Reg(c)) => *access_register(&mut registers, c) += 1,
-            Dec(Reg(c)) => *access_register(&mut registers, c) -= 1,
-            Jnz(u, v) => {
-                if u.evaluate(&mut registers) != 0 {
-                    program_counter = (program_counter as i64 + v.evaluate(&mut registers)) as usize;
-                    continue;
-                }
+            Mov(r, v) => registers[*r as usize - 'a' as usize] = Some(v.evaluate(&mut registers)),
+            Inc(r) => *access_register(&mut registers, r) += 1,
+            Dec(r) => *access_register(&mut registers, r) -= 1,
+            Jnz(u, v) => if u.evaluate(&mut registers) != 0 {
+                pc = (pc as i64 + v.evaluate(&mut registers)) as usize;
+                continue;
             },
-            _ => panic!("inc/dec requires target to be a register")
         }
-        program_counter += 1;
+        pc += 1;
     }
     
     registers.into_iter().enumerate()
@@ -64,13 +62,13 @@ fn simple_assembler(program: Vec<&str>) -> HashMap<String, i64> {
         .map(|(i, v)| (format!("{}", (i as u8 + 'a' as u8) as char), v)).collect()
 }
 
-fn interpret(line: &str) -> Result<Instruction, String> {
+fn parse(line: &str) -> Result<Instruction, String> {
     let s = String::from(line);
     let mut itr = s.split_ascii_whitespace();
     let out = match itr.next() {
-        Some("mov") => Ok(Mov(parse_value(itr.next())?, parse_value(itr.next())?)),
-        Some("inc") => Ok(Inc(parse_value(itr.next())?)),
-        Some("dec") => Ok(Dec(parse_value(itr.next())?)),
+        Some("mov") => Ok(Mov(parse_register(itr.next())?, parse_value(itr.next())?)),
+        Some("inc") => Ok(Inc(parse_register(itr.next())?)),
+        Some("dec") => Ok(Dec(parse_register(itr.next())?)),
         Some("jnz") => Ok(Jnz(parse_value(itr.next())?, parse_value(itr.next())?)),
         Some(x) => Err(format!("'{}' not recognized as instruction", x)),
         None => Err(String::from("Empty line!")),
@@ -83,22 +81,19 @@ fn interpret(line: &str) -> Result<Instruction, String> {
 }
 
 fn parse_value(v_str: Option<&str>) -> Result<Value, String> {
-    if let Some(s) = v_str {
-        match s.parse::<i64>() {
-            Ok(n) => Ok(Num(n)),
-            _ => {
-                if s.len() == 1 {
-                    let c = s.chars().next().unwrap();
-                    if c.is_ascii_lowercase() {
-                        return Ok(Reg(c));
-                    }
-                }
-                Err(format!("Bad register '{}', requires single ascii lowercase letter", s))
-            },
+    let s = v_str.ok_or_else(|| String::from("Expected value, got end of line"))?;
+    s.parse::<i64>().map_or_else(|_| parse_register(v_str).map(Reg), |n| Ok(Num(n)))
+}
+
+fn parse_register(v_str: Option<&str>) -> Result<Register, String> {
+    let s = v_str.ok_or_else(|| String::from("Expected value, got end of line"))?;
+    if s.len() == 1 {
+        let c = s.chars().next().unwrap();
+        if c.is_ascii_lowercase() {
+            return Ok(c);
         }
-    } else {
-        Err(String::from("Expected value, got end of line"))
     }
+    Err(format!("Bad register '{}', requires single ascii lowercase letter", s))
 }
 
 fn main() {
